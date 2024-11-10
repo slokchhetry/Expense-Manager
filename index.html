@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-size: 14px;
+        }
+        #container {
+            margin-top: 10px;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            100: '#2d2d2d',
+                            200: '#1a1a1a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-dark-200 text-white min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold mb-2">Expense Tracker</h1>
+            <div class="flex flex-wrap justify-center gap-4 mt-4">
+                <div class="bg-dark-100 px-4 py-2 rounded-xl shadow-lg">
+                    <p id="total-balance" class="text-sm font-semibold text-gray-300">Total Expenses: $0.00</p>
+                </div>
+                <div class="bg-dark-100 px-4 py-2 rounded-xl shadow-lg">
+                    <p id="monthly-total" class="text-sm font-semibold text-gray-300">This Month: $0.00</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-dark-100 p-4 rounded-xl shadow-lg">
+                <h2 class="text-lg font-bold mb-4">Add Expense</h2>
+                <form id="expense-form" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-400 mb-2" for="name">Name</label>
+                            <input type="text" id="name" class="w-full bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700" required placeholder="Expense name">
+                        </div>
+                        <div>
+                            <label class="block text-gray-400 mb-2" for="amount">Amount</label>
+                            <input type="number" id="amount" class="w-full bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700" required min="0" step="0.01" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-400 mb-2" for="category">Category</label>
+                            <select id="category" class="w-full bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700" required>
+                                <option value="food">Food</option>
+                                <option value="transport">Transport</option>
+                                <option value="entertainment">Entertainment</option>
+                                <option value="utilities">Utilities</option>
+                                <option value="shopping">Shopping</option>
+                                <option value="health">Health</option>
+                                <option value="custom">+ Add Custom</option>
+                            </select>
+                        </div>
+                        <div id="custom-category-container" class="hidden">
+                            <label class="block text-gray-400 mb-2" for="custom-category">Custom Category</label>
+                            <input type="text" id="custom-category" class="w-full bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700" placeholder="Enter category name">
+                        </div>
+                        <div>
+                            <label class="block text-gray-400 mb-2" for="date">Date</label>
+                            <input type="date" id="date" class="w-full bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition-colors font-semibold text-sm">Add Expense</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="bg-dark-100 p-4 rounded-xl shadow-lg">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <h2 class="text-lg font-bold">Recent Transactions</h2>
+                <div class="flex flex-wrap gap-4">
+                    <select id="filter-category" class="bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700">
+                        <option value="">All Categories</option>
+                        <option value="food">Food</option>
+                        <option value="transport">Transport</option>
+                        <option value="entertainment">Entertainment</option>
+                        <option value="utilities">Utilities</option>
+                        <option value="shopping">Shopping</option>
+                        <option value="health">Health</option>
+                    </select>
+                    <select id="sort-by" class="bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700">
+                        <option value="date">Sort by Date</option>
+                        <option value="amount">Sort by Amount</option>
+                        <option value="name">Sort by Name</option>
+                    </select>
+                </div>
+            </div>
+            <div id="transactions-list" class="max-h-[400px] overflow-y-auto space-y-3 pr-2"></div>
+        </div>
+
+        <div id="container" class="bg-dark-100 p-4 rounded-xl shadow-lg">
+            <h2 class="text-lg font-bold mb-4">Expense Summary</h2>
+            <div class="h-[300px] relative">
+                <canvas id="expense-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ExpenseTracker {
+            constructor() {
+                this.expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+                this.categories = new Set(['food', 'transport', 'entertainment', 'utilities', 'shopping', 'health']);
+                this.chart = null;
+                this.initializeEventListeners();
+                this.updateUI();
+            }
+
+            initializeEventListeners() {
+                document.getElementById('expense-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.addExpense();
+                });
+
+                document.getElementById('filter-category').addEventListener('change', () => this.updateUI());
+                document.getElementById('sort-by').addEventListener('change', () => this.updateUI());
+            }
+
+            addExpense() {
+                const name = document.getElementById('name').value;
+                const amount = parseFloat(document.getElementById('amount').value);
+                const category = document.getElementById('category').value === 'custom' 
+                    ? document.getElementById('custom-category').value.toLowerCase()
+                    : document.getElementById('category').value;
+                const date = document.getElementById('date').value;
+
+                if (category !== 'custom') {
+                    this.categories.add(category);
+                    this.updateCategoryDropdowns();
+                }
+
+                const expense = {
+                    id: Date.now(),
+                    name,
+                    amount,
+                    category,
+                    date,
+                    timestamp: new Date(date).getTime()
+                };
+
+                this.expenses.push(expense);
+                this.saveExpenses();
+                this.updateUI();
+                document.getElementById('expense-form').reset();
+            }
+
+            editExpense(id) {
+                const expense = this.expenses.find(exp => exp.id === id);
+                if (expense) {
+                    document.getElementById('name').value = expense.name;
+                    document.getElementById('amount').value = expense.amount;
+                    document.getElementById('category').value = expense.category;
+                    document.getElementById('date').value = expense.date;
+
+                    this.deleteExpense(id);
+                }
+            }
+
+            deleteExpense(id) {
+                this.expenses = this.expenses.filter(exp => exp.id !== id);
+                this.saveExpenses();
+                this.updateUI();
+            }
+
+            saveExpenses() {
+                localStorage.setItem('expenses', JSON.stringify(this.expenses));
+            }
+
+            updateTransactionsList() {
+                const transactionsList = document.getElementById('transactions-list');
+                const filtered = this.getFilteredExpenses();
+
+                transactionsList.innerHTML = filtered.map(expense => `
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-dark-200 rounded-lg hover:bg-dark-100 transition-colors">
+                        <div class="flex-1 min-w-0 mb-2 sm:mb-0">
+                            <div class="font-medium text-sm truncate">${expense.name}</div>
+                            <div class="text-xs text-gray-400 flex items-center gap-2">
+                                <span class="capitalize">${expense.category}</span>
+                                <span class="inline-block w-1 h-1 bg-gray-400 rounded-full"></span>
+                                <span>${new Date(expense.date).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                        <div class="text-red-500 font-semibold text-sm">-$${expense.amount.toFixed(2)}</div>
+                        <div class="flex gap-2">
+                            <button class="bg-blue-500 text-white px-2 py-1 rounded text-xs" onclick="expenseTracker.editExpense(${expense.id})">Edit</button>
+                            <button class="bg-red-500 text-white px-2 py-1 rounded text-xs" onclick="expenseTracker.deleteExpense(${expense.id})">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            getFilteredExpenses() {
+                const categoryFilter = document.getElementById('filter-category').value;
+                const sortBy = document.getElementById('sort-by').value;
+
+                let filtered = [...this.expenses];
+
+                if (categoryFilter) {
+                    filtered = filtered.filter(expense => expense.category === categoryFilter);
+                }
+
+                filtered.sort((a, b) => {
+                    switch(sortBy) {
+                        case 'date':
+                            return b.timestamp - a.timestamp;
+                        case 'amount':
+                            return b.amount - a.amount;
+                        case 'name':
+                            return a.name.localeCompare(b.name);
+                        default:
+                            return b.timestamp - a.timestamp;
+                    }
+                });
+
+                return filtered;
+            }
+
+            updateChart() {
+                const ctx = document.getElementById('expense-chart').getContext('2d');
+                
+                const categoryTotals = this.expenses.reduce((acc, expense) => {
+                    acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+                    return acc;
+                }, {});
+
+                if (this.chart) {
+                    this.chart.destroy();
+                }
+
+                this.chart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(categoryTotals).map(cat => 
+                            this.capitalizeFirst(cat)
+                        ),
+                        datasets: [{
+                            data: Object.values(categoryTotals),
+                            backgroundColor: [
+                                '#6366f1', '#22c55e', '#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#ffffff',
+                                    padding: 20,
+                                    usePointStyle: true
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            updateBalance() {
+                const total = this.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+                document.getElementById('total-balance').textContent = 
+                    `Total Expenses: $${total.toFixed(2)}`;
+
+                const now = new Date();
+                const thisMonth = now.getMonth();
+                const thisYear = now.getFullYear();
+                const monthlyTotal = this.expenses
+                    .filter(expense => {
+                        const expenseDate = new Date(expense.date);
+                        return expenseDate.getMonth() === thisMonth && 
+                               expenseDate.getFullYear() === thisYear;
+                    })
+                    .reduce((sum, expense) => sum + expense.amount, 0);
+
+                document.getElementById('monthly-total').textContent = 
+                    `This Month: $${monthlyTotal.toFixed(2)}`;
+            }
+
+            updateUI() {
+                this.updateTransactionsList();
+                this.updateChart();
+                this.updateBalance();
+            }
+
+            capitalizeFirst(string) {
+                return string.charAt(0).toUpperCase() + string.slice(1);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.expenseTracker = new ExpenseTracker();
+        });
+    </script>
+</body>
+</html>
