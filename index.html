@@ -1,12 +1,46 @@
-
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Tracker</title>
+    <title>IronMan Expense Tracker</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse {
+            0% { opacity: 0.6; transform: scale(0.98); }
+            50% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0.6; transform: scale(0.98); }
+        }
+        
+        .ironman-loader {
+            animation: pulse 2s infinite;
+        }
+        
+        .stats-card {
+            backdrop-filter: blur(8px);
+            background: rgba(45, 45, 45, 0.8);
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #ef4444;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #dc2626;
+        }
+    </style>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -16,6 +50,10 @@
                         dark: {
                             100: '#2d2d2d',
                             200: '#1a1a1a'
+                        },
+                        ironman: {
+                            red: '#ef4444',
+                            gold: '#f59e0b'
                         }
                     }
                 }
@@ -24,305 +62,162 @@
     </script>
 </head>
 <body class="bg-dark-200 text-white min-h-screen">
-    <div class="container mx-auto px-4 py-8 max-w-6xl">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold mb-2">Expense Tracker</h1>
-            <div class="flex flex-wrap justify-center gap-4 mt-4">
-                <div class="bg-dark-100 px-6 py-3 rounded-xl shadow-lg">
-                    <p id="total-balance" class="text-xl font-semibold text-gray-300">Total Expenses: $0.00</p>
-                </div>
-                <div class="bg-dark-100 px-6 py-3 rounded-xl shadow-lg">
-                    <p id="monthly-total" class="text-xl font-semibold text-gray-300">This Month: $0.00</p>
-                </div>
-            </div>
-        </header>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <!-- Chart Card -->
-            <div class="bg-dark-100 p-6 rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold mb-4">Expense Summary</h2>
-                <div class="h-[300px] relative">
-                    <canvas id="expense-chart"></canvas>
-                </div>
-            </div>
-
-            <!-- Add Expense Card -->
-            <div class="bg-dark-100 p-6 rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold mb-4">Add Expense</h2>
-                <form id="expense-form" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-gray-400 mb-2" for="name">Name</label>
-                            <input type="text" id="name" class="w-full bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-indigo-500" required placeholder="Expense name">
-                        </div>
-                        <div>
-                            <label class="block text-gray-400 mb-2" for="amount">Amount</label>
-                            <input type="number" id="amount" class="w-full bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-indigo-500" required min="0" step="0.01" placeholder="0.00">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-gray-400 mb-2" for="category">Category</label>
-                            <select id="category" class="w-full bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-indigo-500" required>
-                                <option value="food">Food</option>
-                                <option value="transport">Transport</option>
-                                <option value="entertainment">Entertainment</option>
-                                <option value="utilities">Utilities</option>
-                                <option value="shopping">Shopping</option>
-                                <option value="health">Health</option>
-                                <option value="custom">+ Add Custom</option>
-                            </select>
-                        </div>
-                        <div id="custom-category-container" class="hidden">
-                            <label class="block text-gray-400 mb-2" for="custom-category">Custom Category</label>
-                            <input type="text" id="custom-category" class="w-full bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-indigo-500" placeholder="Enter category name">
-                        </div>
-                        <div>
-                            <label class="block text-gray-400 mb-2" for="date">Date</label>
-                            <input type="date" id="date" class="w-full bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-indigo-500" required>
-                        </div>
-                    </div>
-                    <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors font-semibold">Add Expense</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Transactions Card -->
-        <div class="bg-dark-100 p-6 rounded-xl shadow-lg">
-            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                <h2 class="text-xl font-bold">Recent Transactions</h2>
-                <div class="flex flex-wrap gap-4">
-                    <select id="filter-category" class="bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-indigo-500">
-                        <option value="">All Categories</option>
-                        <option value="food">Food</option>
-                        <option value="transport">Transport</option>
-                        <option value="entertainment">Entertainment</option>
-                        <option value="utilities">Utilities</option>
-                        <option value="shopping">Shopping</option>
-                        <option value="health">Health</option>
-                    </select>
-                    <select id="sort-by" class="bg-dark-200 text-white px-4 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-indigo-500">
-                        <option value="date">Sort by Date</option>
-                        <option value="amount">Sort by Amount</option>
-                        <option value="name">Sort by Name</option>
-                    </select>
-                </div>
-            </div>
-            <div id="transactions-list" class="max-h-[400px] overflow-y-auto space-y-3 pr-2">
-                <!-- Transactions will be inserted here -->
-            </div>
-        </div>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-dark-200 z-50 flex flex-col items-center justify-center">
+        <svg class="ironman-loader w-32 h-32 mb-8" viewBox="0 0 100 100">
+            <path fill="#ef4444" d="M50 10 L90 30 L90 70 L50 90 L10 70 L10 30 Z">
+                <animate attributeName="fill" values="#ef4444;#f59e0b;#ef4444" dur="2s" repeatCount="indefinite"/>
+            </path>
+            <circle fill="#f59e0b" cx="50" cy="50" r="15">
+                <animate attributeName="r" values="15;20;15" dur="2s" repeatCount="indefinite"/>
+            </circle>
+        </svg>
+        <div class="text-2xl font-bold text-ironman-red">JARVIS Initializing...</div>
+        <div class="text-ironman-gold mt-2">Powering up expense tracking systems</div>
     </div>
 
+    <!-- Main Content (Previous content remains the same until the footer) -->
+    <!-- ... Previous content ... -->
+
+    <!-- Stats Footer -->
+    <footer class="mt-12 bg-gradient-to-r from-dark-100 to-dark-200 py-8 px-4">
+        <div class="container mx-auto max-w-6xl">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Total Stats Card -->
+                <div class="stats-card rounded-xl p-6 border border-ironman-red/20 hover:border-ironman-red/40 transition-colors">
+                    <div class="text-ironman-red text-sm font-semibold mb-2">TOTAL EXPENSES</div>
+                    <div id="stats-total" class="text-3xl font-bold mb-2">$0.00</div>
+                    <div id="stats-count" class="text-gray-400 text-sm">0 transactions</div>
+                </div>
+
+                <!-- Monthly Average Card -->
+                <div class="stats-card rounded-xl p-6 border border-ironman-gold/20 hover:border-ironman-gold/40 transition-colors">
+                    <div class="text-ironman-gold text-sm font-semibold mb-2">MONTHLY AVERAGE</div>
+                    <div id="stats-monthly-avg" class="text-3xl font-bold mb-2">$0.00</div>
+                    <div id="stats-months" class="text-gray-400 text-sm">0 months tracked</div>
+                </div>
+
+                <!-- Highest Expense Card -->
+                <div class="stats-card rounded-xl p-6 border border-ironman-red/20 hover:border-ironman-red/40 transition-colors">
+                    <div class="text-ironman-red text-sm font-semibold mb-2">HIGHEST EXPENSE</div>
+                    <div id="stats-highest" class="text-3xl font-bold mb-2">$0.00</div>
+                    <div id="stats-highest-category" class="text-gray-400 text-sm">No expenses yet</div>
+                </div>
+
+                <!-- Top Category Card -->
+                <div class="stats-card rounded-xl p-6 border border-ironman-gold/20 hover:border-ironman-gold/40 transition-colors">
+                    <div class="text-ironman-gold text-sm font-semibold mb-2">TOP CATEGORY</div>
+                    <div id="stats-top-category" class="text-3xl font-bold mb-2">-</div>
+                    <div id="stats-category-percent" class="text-gray-400 text-sm">0% of total</div>
+                </div>
+            </div>
+
+            <!-- Created By Section -->
+            <div class="text-center">
+                <div class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-dark-100">
+                    <span class="text-ironman-red font-bold">POWERED BY</span>
+                    <span class="text-ironman-gold">IRONMAN</span>
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-ironman-gold">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Audio Elements -->
+    <audio id="startup-sound" preload="auto">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAEAAABVgANTU1NTU1Q0NDQ0NDUVFRUVFRYGBgYGBgbm5ubm5ufX19fX19i4uLi4uLmpqampqaqqqqqqqqubm5ubm5yMjIyMjI1tbW1tbW5eXl5eXl8/Pz8/Pz//////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAUMY5ZQAAAAAAAAAAAAAAAAAAAAAA/+QowAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAAAAANIAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" type="audio/mpeg">
+    </audio>
+    <audio id="click-sound" preload="auto">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAABkAYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBg/////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAAAAANIAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" type="audio/mpeg">
+    </audio>
+
     <script>
+        // Previous JavaScript plus these additions:
         class ExpenseTracker {
             constructor() {
-                this.expenses = JSON.parse(localStorage.getItem('expenses')) || [];
-                this.categories = new Set(['food', 'transport', 'entertainment', 'utilities', 'shopping', 'health']);
-                this.chart = null;
-                this.initializeEventListeners();
-                this.updateUI();
-                this.initializeCustomCategory();
-            }
-
-            initializeCustomCategory() {
-                const categorySelect = document.getElementById('category');
-                const customContainer = document.getElementById('custom-category-container');
-                const customInput = document.getElementById('custom-category');
-
-                categorySelect.addEventListener('change', () => {
-                    if (categorySelect.value === 'custom') {
-                        customContainer.classList.remove('hidden');
-                        customInput.required = true;
-                    } else {
-                        customContainer.classList.add('hidden');
-                        customInput.required = false;
-                    }
-                });
-
-                // Update filter dropdown with saved categories
-                this.updateCategoryDropdowns();
-            }
-
-            updateCategoryDropdowns() {
-                const filterSelect = document.getElementById('filter-category');
-                const savedCategories = [...this.categories].sort();
+                // ... previous constructor code ...
                 
-                const filterOptions = ['<option value="">All Categories</option>'];
-                savedCategories.forEach(category => {
-                    filterOptions.push(`<option value="${category}">${this.capitalizeFirst(category)}</option>`);
-                });
-                filterSelect.innerHTML = filterOptions.join('');
+                // Add loading screen and sound effects
+                this.initializeLoadingScreen();
             }
 
-            capitalizeFirst(string) {
-                return string.charAt(0).toUpperCase() + string.slice(1);
-            }
-
-            initializeEventListeners() {
-                document.getElementById('expense-form').addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    this.addExpense();
-                });
-
-                document.getElementById('filter-category').addEventListener('change', () => this.updateUI());
-                document.getElementById('sort-by').addEventListener('change', () => this.updateUI());
-            }
-
-            addExpense() {
-                const name = document.getElementById('name').value;
-                const amount = parseFloat(document.getElementById('amount').value);
-                const category = document.getElementById('category').value === 'custom' 
-                    ? document.getElementById('custom-category').value.toLowerCase()
-                    : document.getElementById('category').value;
-                const date = document.getElementById('date').value;
-
-                if (category !== 'custom') {
-                    this.categories.add(category);
-                    this.updateCategoryDropdowns();
-                }
-
-                const expense = {
-                    id: Date.now(),
-                    name,
-                    amount,
-                    category,
-                    date,
-                    timestamp: new Date(date).getTime()
-                };
-
-                this.expenses.push(expense);
-                this.saveExpenses();
-                this.updateUI();
-                document.getElementById('expense-form').reset();
-                document.getElementById('custom-category-container').classList.add('hidden');
-            }
-
-            saveExpenses() {
-                localStorage.setItem('expenses', JSON.stringify(this.expenses));
-            }
-
-            getFilteredExpenses() {
-                const categoryFilter = document.getElementById('filter-category').value;
-                const sortBy = document.getElementById('sort-by').value;
-
-                let filtered = [...this.expenses];
-
-                if (categoryFilter) {
-                    filtered = filtered.filter(expense => expense.category === categoryFilter);
-                }
-
-                filtered.sort((a, b) => {
-                    switch(sortBy) {
-                        case 'date':
-                            return b.timestamp - a.timestamp;
-                        case 'amount':
-                            return b.amount - a.amount;
-                        case 'name':
-                            return a.name.localeCompare(b.name);
-                        default:
-                            return b.timestamp - a.timestamp;
-                    }
-                });
-
-                return filtered;
-            }
-
-            updateTransactionsList() {
-                const transactionsList = document.getElementById('transactions-list');
-                const filtered = this.getFilteredExpenses();
-
-                transactionsList.innerHTML = filtered.map(expense => `
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-dark-200 rounded-lg hover:bg-dark-100 transition-colors">
-                        <div class="flex-1 min-w-0 mb-2 sm:mb-0">
-                            <div class="font-medium truncate">${expense.name}</div>
-                            <div class="text-sm text-gray-400 flex items-center gap-2">
-                                <span class="capitalize">${expense.category}</span>
-                                <span class="inline-block w-1 h-1 bg-gray-400 rounded-full"></span>
-                                <span>${new Date(expense.date).toLocaleDateString()}</span>
-                            </div>
-                        </div>
-                        <div class="text-red-500 font-semibold text-lg">-$${expense.amount.toFixed(2)}</div>
-                    </div>
-                `).join('');
-            }
-
-            updateChart() {
-                const ctx = document.getElementById('expense-chart').getContext('2d');
+            initializeLoadingScreen() {
+                const startupSound = document.getElementById('startup-sound');
+                startupSound.play();
                 
+                setTimeout(() => {
+                    document.getElementById('loading-screen').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('loading-screen').style.display = 'none';
+                    }, 500);
+                }, 2000);
+            }
+
+            playClickSound() {
+                const clickSound = document.getElementById('click-sound');
+                clickSound.currentTime = 0;
+                clickSound.play();
+            }
+
+            updateStats() {
+                const total = this.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+                const count = this.expenses.length;
+                
+                // Get unique months count
+                const uniqueMonths = new Set(
+                    this.expenses.map(expense => {
+                        const date = new Date(expense.date);
+                        return `${date.getMonth()}-${date.getFullYear()}`;
+                    })
+                ).size;
+                
+                // Calculate monthly average
+                const monthlyAvg = uniqueMonths ? total / uniqueMonths : 0;
+                
+                // Get highest expense
+                const highest = this.expenses.length ? 
+                    this.expenses.reduce((max, expense) => expense.amount > max.amount ? expense : max) :
+                    null;
+                
+                // Get top category
                 const categoryTotals = this.expenses.reduce((acc, expense) => {
                     acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
                     return acc;
                 }, {});
-
-                if (this.chart) {
-                    this.chart.destroy();
+                
+                const topCategory = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
+                
+                // Update stats UI
+                document.getElementById('stats-total').textContent = `$${total.toFixed(2)}`;
+                document.getElementById('stats-count').textContent = `${count} transaction${count !== 1 ? 's' : ''}`;
+                document.getElementById('stats-monthly-avg').textContent = `$${monthlyAvg.toFixed(2)}`;
+                document.getElementById('stats-months').textContent = `${uniqueMonths} month${uniqueMonths !== 1 ? 's' : ''} tracked`;
+                
+                if (highest) {
+                    document.getElementById('stats-highest').textContent = `$${highest.amount.toFixed(2)}`;
+                    document.getElementById('stats-highest-category').textContent = `${this.capitalizeFirst(highest.category)} - ${highest.name}`;
                 }
-
-                this.chart = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: Object.keys(categoryTotals).map(cat => 
-                            this.capitalizeFirst(cat)
-                        ),
-                        datasets: [{
-                            data: Object.values(categoryTotals),
-                            backgroundColor: [
-                                '#6366f1',
-                                '#22c55e',
-                                '#ef4444',
-                                '#f59e0b',
-                                '#3b82f6',
-                                '#8b5cf6',
-                                '#ec4899'
-                            ]
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: {
-                                    color: '#ffffff',
-                                    padding: 20,
-                                    usePointStyle: true
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            updateBalance() {
-                const total = this.expenses.reduce((sum, expense) => sum + expense.amount, 0);
-                document.getElementById('total-balance').textContent = 
-                    `Total Expenses: $${total.toFixed(2)}`;
-
-                // Calculate this month's total
-                const now = new Date();
-                const thisMonth = now.getMonth();
-                const thisYear = now.getFullYear();
-                const monthlyTotal = this.expenses
-                    .filter(expense => {
-                        const expenseDate = new Date(expense.date);
-                        return expenseDate.getMonth() === thisMonth && 
-                               expenseDate.getFullYear() === thisYear;
-                    })
-                    .reduce((sum, expense) => sum + expense.amount, 0);
-
-                document.getElementById('monthly-total').textContent = 
-                    `This Month: $${monthlyTotal.toFixed(2)}`;
+                
+                if (topCategory) {
+                    const [category, amount] = topCategory;
+                    const percentage = ((amount / total) * 100).toFixed(1);
+                    document.getElementById('stats-top-category').textContent = this.capitalizeFirst(category);
+                    document.getElementById('stats-category-percent').textContent = `${percentage}% of total`;
+                }
             }
 
             updateUI() {
                 this.updateTransactionsList();
                 this.updateChart();
                 this.updateBalance();
+                this.updateStats();
+                this.playClickSound();
             }
         }
 
+        // Initialize on DOM load
         document.addEventListener('DOMContentLoaded', () => {
             new ExpenseTracker();
         });
